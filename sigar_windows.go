@@ -10,7 +10,6 @@ import (
 	"unsafe"
 
 	"github.com/cloudfoundry/gosigar/sys/windows"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -100,7 +99,7 @@ func parseWmicOutput(s, sep []byte) (uint64, error) {
 			return strconv.ParseUint(string(b[n+1:]), 10, 64)
 		}
 	}
-	return 0, errors.New("parseWmicOutput: missing field: " + string(sep))
+	return 0, fmt.Errorf("parseWmicOutput: missing field: %s", string(sep))
 }
 
 func (c *Cpu) Get() error {
@@ -143,13 +142,13 @@ func (self *ProcState) Get(pid int) error {
 func (self *ProcMem) Get(pid int) error {
 	handle, err := syscall.OpenProcess(processQueryLimitedInfoAccess|windows.PROCESS_VM_READ, false, uint32(pid))
 	if err != nil {
-		return errors.Wrapf(err, "OpenProcess failed for pid=%v", pid)
+		return fmt.Errorf("OpenProcess failed for pid=%v: %w", pid, err)
 	}
 	defer syscall.CloseHandle(handle)
 
 	counters, err := windows.GetProcessMemoryInfo(handle)
 	if err != nil {
-		return errors.Wrapf(err, "GetProcessMemoryInfo failed for pid=%v", pid)
+		return fmt.Errorf("GetProcessMemoryInfo failed for pid=%v: %w", pid, err)
 	}
 
 	self.Resident = uint64(counters.WorkingSetSize)
@@ -160,13 +159,13 @@ func (self *ProcMem) Get(pid int) error {
 func (self *ProcTime) Get(pid int) error {
 	handle, err := syscall.OpenProcess(processQueryLimitedInfoAccess, false, uint32(pid))
 	if err != nil {
-		return errors.Wrapf(err, "OpenProcess failed for pid=%v", pid)
+		return fmt.Errorf("OpenProcess failed for pid=%v: %w", pid, err)
 	}
 	defer syscall.CloseHandle(handle)
 
 	var CPU syscall.Rusage
 	if err := syscall.GetProcessTimes(handle, &CPU.CreationTime, &CPU.ExitTime, &CPU.KernelTime, &CPU.UserTime); err != nil {
-		return errors.Wrapf(err, "GetProcessTimes failed for pid=%v", pid)
+		return fmt.Errorf("GetProcessTimes failed for pid=%v: %w", pid, err)
 	}
 
 	// Windows epoch times are expressed as time elapsed since midnight on
