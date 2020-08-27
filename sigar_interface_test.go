@@ -4,183 +4,241 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"testing"
 )
 
-var _ = Describe("Sigar", func() {
-	var invalidPid = 666666
+const invalidPid = 666666
 
-	It("cpu", func() {
-		cpu := Cpu{}
-		err := cpu.Get()
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
-	})
+func TestCPU(t *testing.T) {
+	cpu := Cpu{}
+	err := cpu.Get()
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
-	It("load average", func() {
-		avg := LoadAverage{}
-		err := avg.Get()
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
-	})
+func TestLoadAverage(t *testing.T) {
+	avg := LoadAverage{}
+	err := avg.Get()
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
-	It("uptime", func() {
-		uptime := Uptime{}
-		err := uptime.Get()
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
-		Expect(uptime.Length).To(BeNumerically(">", 0))
-	})
+func TestUptime(t *testing.T) {
+	uptime := Uptime{}
+	err := uptime.Get()
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uptime.Length <= 0 {
+		t.Fatal()
+	}
+}
 
-	It("mem", func() {
-		mem := Mem{}
-		err := mem.Get()
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
-		Expect(mem.Total).To(BeNumerically(">", 0))
-		Expect(mem.Used + mem.Free).To(BeNumerically("<=", mem.Total))
-	})
+func TestMem(t *testing.T) {
+	mem := Mem{}
+	err := mem.Get()
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	It("swap", func() {
-		swap := Swap{}
-		err := swap.Get()
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
-		Expect(swap.Used + swap.Free).To(BeNumerically("<=", swap.Total))
-	})
+	if mem.Total <= 0 {
+		t.Fatal()
+	}
+	if (mem.Used + mem.Free) > mem.Total {
+		t.Fatal()
+	}
+}
 
-	It("cpu list", func() {
-		cpulist := CpuList{}
-		err := cpulist.Get()
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
+func TestSwap(t *testing.T) {
+	swap := Swap{}
+	err := swap.Get()
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (swap.Used + swap.Free) > swap.Total {
+		t.Fatal()
+	}
+}
 
-		nsigar := len(cpulist.List)
-		numcpu := runtime.NumCPU()
-		Expect(nsigar).To(Equal(numcpu))
-	})
+func TestCPUList(t *testing.T) {
+	cpulist := CpuList{}
+	err := cpulist.Get()
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	It("file system list", func() {
-		fslist := FileSystemList{}
-		err := fslist.Get()
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
+	nsigar := len(cpulist.List)
+	numcpu := runtime.NumCPU()
+	if nsigar != numcpu {
+		t.Fatal()
+	}
+}
 
-		Expect(len(fslist.List)).To(BeNumerically(">", 0))
-	})
+func TestFileSystemList(t *testing.T) {
+	fslist := FileSystemList{}
+	err := fslist.Get()
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fslist.List) == 0 {
+		t.Fatal()
+	}
+}
 
-	It("file system usage", func() {
-		fsusage := FileSystemUsage{}
-		err := fsusage.Get("/")
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
+func TestFileSystemUsage(t *testing.T) {
+	fsusage := FileSystemUsage{}
+	err := fsusage.Get("/")
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		err = fsusage.Get("T O T A L L Y B O G U S")
-		Expect(err).To(HaveOccurred())
-	})
+	err = fsusage.Get("T O T A L L Y B O G U S")
+	if err == nil {
+		t.Fatal(err)
+	}
+}
 
-	It("proc list", func() {
-		pids := ProcList{}
-		err := pids.Get()
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
+func TestProcList(t *testing.T) {
+	pids := ProcList{}
+	err := pids.Get()
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pids.List) <= 2 {
+		t.Fatal()
+	}
 
-		Expect(len(pids.List)).To(BeNumerically(">", 2))
+	err = pids.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		err = pids.Get()
-		Expect(err).ToNot(HaveOccurred())
-	})
+}
 
-	It("proc state", func() {
-		state := ProcState{}
-		err := state.Get(os.Getppid())
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
+func TestProcState(t *testing.T) {
+	state := ProcState{}
+	err := state.Get(os.Getppid())
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		Expect([]RunState{RunStateRun, RunStateSleep}).To(ContainElement(state.State))
-		Expect([]string{"go", "ginkgo"}).To(ContainElement(state.Name))
+	if state.State != RunStateRun && state.State != RunStateSleep {
+		t.Fatal()
+	}
+	if filepath.Base(state.Name) != "go" {
+		t.Fatal()
+	}
 
-		err = state.Get(invalidPid)
-		Expect(err).To(HaveOccurred())
-	})
+	err = state.Get(invalidPid)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
 
-	It("proc cpu", func() {
-		pCpu := ProcCpu{}
-		err := pCpu.Get(os.Getppid())
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
+func TestProcCPU(t *testing.T) {
+	pCpu := ProcCpu{}
+	err := pCpu.Get(os.Getppid())
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		err = pCpu.Get(invalidPid)
-		Expect(err).To(HaveOccurred())
-	})
+	err = pCpu.Get(invalidPid)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
 
-	It("proc mem", func() {
-		mem := ProcMem{}
-		err := mem.Get(os.Getppid())
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
+func TestProcMem(t *testing.T) {
+	mem := ProcMem{}
+	err := mem.Get(os.Getppid())
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		err = mem.Get(invalidPid)
-		Expect(err).To(HaveOccurred())
-	})
+	err = mem.Get(invalidPid)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
 
-	It("proc time", func() {
-		time := ProcTime{}
-		err := time.Get(os.Getppid())
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
+func TestProcTime(t *testing.T) {
+	time := ProcTime{}
+	err := time.Get(os.Getppid())
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		err = time.Get(invalidPid)
-		Expect(err).To(HaveOccurred())
-	})
+	err = time.Get(invalidPid)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
 
-	It("proc args", func() {
-		args := ProcArgs{}
-		err := args.Get(os.Getppid())
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
+func TestProcArgs(t *testing.T) {
+	args := ProcArgs{}
+	err := args.Get(os.Getppid())
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(args.List) < 1 {
+		t.Fatal()
+	}
+}
 
-		Expect(len(args.List)).To(BeNumerically(">=", 1))
-	})
-
-	It("proc exe", func() {
-		exe := ProcExe{}
-		err := exe.Get(os.Getppid())
-		if err == ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(err).ToNot(HaveOccurred())
-
-		Expect([]string{"go", "ginkgo"}).To(ContainElement(filepath.Base(exe.Name)))
-	})
-})
+func TestProcExe(t *testing.T) {
+	exe := ProcExe{}
+	err := exe.Get(os.Getppid())
+	if err == ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(exe.Name) != "go" {
+		t.Fatal(exe.Name)
+	}
+}

@@ -115,7 +115,9 @@ func TestGetDiskFreeSpaceEx(t *testing.T) {
 
 func TestGetWindowsVersion(t *testing.T) {
 	ver := GetWindowsVersion()
-	assert.True(t, ver.Major >= 5)
+	if ver.Major < 5 {
+		t.Fatal()
+	}
 	t.Logf("GetWindowsVersion: %+v", ver)
 }
 
@@ -140,7 +142,9 @@ func TestCreateToolhelp32Snapshot(t *testing.T) {
 		t.Logf("CreateToolhelp32Snapshot: ProcessEntry32=%v", process)
 
 		if process.ProcessID == pid {
-			assert.EqualValues(t, syscall.Getppid(), process.ParentProcessID)
+			if syscall.Getppid() != process.ParentProcessID {
+				t.Fatal()
+			}
 			return
 		}
 	}
@@ -157,9 +161,15 @@ func TestNtQuerySystemProcessorPerformanceInformation(t *testing.T) {
 	assert.Len(t, cpus, runtime.NumCPU())
 
 	for i, cpu := range cpus {
-		assert.NotZero(t, cpu.IdleTime)
-		assert.NotZero(t, cpu.KernelTime)
-		assert.NotZero(t, cpu.UserTime)
+		if cpu.IdleTime == 0 {
+			t.Fatal()
+		}
+		if cpu.KernelTime == 0 {
+			t.Fatal()
+		}
+		if cpu.UserTime == 0 {
+			t.Fatal()
+		}
 
 		t.Logf("CPU=%v SystemProcessorPerformanceInformation=%v", i, cpu)
 	}
@@ -176,8 +186,12 @@ func TestNtQueryProcessBasicInformation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.EqualValues(t, os.Getpid(), info.UniqueProcessID)
-	assert.EqualValues(t, os.Getppid(), info.InheritedFromUniqueProcessID)
+	if os.Getpid() != info.UniqueProcessID {
+		t.Fatal()
+	}
+	if os.Getppid() != info.InheritedFromUniqueProcessID {
+		t.Fatal()
+	}
 
 	t.Logf("NtQueryProcessBasicInformation: %+v", info)
 }

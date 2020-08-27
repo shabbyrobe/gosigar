@@ -6,7 +6,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/sys/windows"
 )
 
@@ -76,7 +75,10 @@ func TestEnableTokenPrivileges(t *testing.T) {
 	}
 
 	priv, found = privs[SeDebugPrivilege]
-	if found && assert.True(t, priv.Enabled, "%v is not enabled. %v", SeDebugPrivilege, priv) {
+	if found {
+		if !prv.Enabled {
+			t.Fatal(priv.Enabled, "%v is not enabled. %v", SeDebugPrivilege, priv)
+		}
 		t.Logf("%v is enabled.", SeDebugPrivilege)
 	}
 }

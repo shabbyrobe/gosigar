@@ -2,87 +2,122 @@ package sigar_test
 
 import (
 	"runtime"
+	"testing"
 	"time"
 
-	"github.com/cloudfoundry/gosigar"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	sigar "github.com/cloudfoundry/gosigar"
 )
 
-var _ = Describe("ConcreteSigar", func() {
-	var concreteSigar *sigar.ConcreteSigar
+// It immediately makes first CPU usage available even though it's not very accurate
+func TestFirstCPUUsage(t *testing.T) {
+	var concreteSigar sigar.ConcreteSigar
 
-	BeforeEach(func() {
-		concreteSigar = &sigar.ConcreteSigar{}
-	})
+	samplesCh, stop := concreteSigar.CollectCpuStats(500 * time.Millisecond)
+	defer func() {
+		stop <- struct{}{}
+	}()
 
-	Describe("CollectCpuStats", func() {
-		It("immediately makes first CPU usage available even though it's not very accurate", func() {
-			samplesCh, stop := concreteSigar.CollectCpuStats(500 * time.Millisecond)
+	firstValue := <-samplesCh
+	if firstValue.User <= 0 {
+		t.Fatal()
+	}
+}
 
-			firstValue := <-samplesCh
-			Expect(firstValue.User).To(BeNumerically(">", 0))
+func TestCPUUsageDelta(t *testing.T) {
+	var concreteSigar sigar.ConcreteSigar
 
-			stop <- struct{}{}
-		})
+	samplesCh, stop := concreteSigar.CollectCpuStats(500 * time.Millisecond)
+	defer func() {
+		stop <- struct{}{}
+	}()
 
-		It("makes CPU usage delta values available", func() {
-			samplesCh, stop := concreteSigar.CollectCpuStats(500 * time.Millisecond)
+	firstValue := <-samplesCh
+	secondValue := <-samplesCh
 
-			firstValue := <-samplesCh
+	if secondValue.User >= firstValue.User {
+		t.Fatal()
+	}
+}
 
-			secondValue := <-samplesCh
-			Expect(secondValue.User).To(BeNumerically("<", firstValue.User))
+func TestItDoesNotBlock(t *testing.T) {
+	var concreteSigar sigar.ConcreteSigar
 
-			stop <- struct{}{}
-		})
+	_, stop := concreteSigar.CollectCpuStats(10 * time.Millisecond)
 
-		It("does not block", func() {
-			_, stop := concreteSigar.CollectCpuStats(10 * time.Millisecond)
+	// Sleep long enough for samplesCh to fill at least 2 values
+	time.Sleep(20 * time.Millisecond)
 
-			// Sleep long enough for samplesCh to fill at least 2 values
-			time.Sleep(20 * time.Millisecond)
+	c := time.After(1 * time.Second)
+	select {
+	case stop <- struct{}{}:
+	case <-c:
+		t.Fatal()
+	}
 
-			stop <- struct{}{}
+	// If CollectCpuStats blocks it will never get here
+}
 
-			// If CollectCpuStats blocks it will never get here
-			Expect(true).To(BeTrue())
-		})
-	})
+func TestGetLoadAverage(t *testing.T) {
+	var concreteSigar sigar.ConcreteSigar
 
-	It("GetLoadAverage", func() {
-		avg, err := concreteSigar.GetLoadAverage()
-		if err == sigar.ErrNotImplemented {
-			Skip("Not implemented on " + runtime.GOOS)
-		}
-		Expect(avg.One).ToNot(BeNil())
-		Expect(avg.Five).ToNot(BeNil())
-		Expect(avg.Fifteen).ToNot(BeNil())
+	avg, err := concreteSigar.GetLoadAverage()
+	if err == sigar.ErrNotImplemented {
+		t.Skip("Not implemented on " + runtime.GOOS)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if avg.One == 0 {
+		t.Fatal()
+	}
+	if avg.Five == 0 {
+		t.Fatal()
+	}
+	if avg.Fifteen == 0 {
+		t.Fatal()
+	}
+}
 
-		Expect(err).ToNot(HaveOccurred())
-	})
+func TestGetMem(t *testing.T) {
+	var concreteSigar sigar.ConcreteSigar
+	mem, err := concreteSigar.GetMem()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mem.Total <= 0 {
+		t.Fatal()
+	}
+	if mem.Used+mem.Free > mem.Total {
+		t.Fatal()
+	}
+}
 
-	It("GetMem", func() {
-		mem, err := concreteSigar.GetMem()
-		Expect(err).ToNot(HaveOccurred())
+func TestGetSwap(t *testing.T) {
+	var concreteSigar sigar.ConcreteSigar
+	swap, err := concreteSigar.GetSwap()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if swap.Used+swap.Free > swap.Total {
+		t.Fatal()
+	}
+}
 
-		Expect(mem.Total).To(BeNumerically(">", 0))
-		Expect(mem.Used + mem.Free).To(BeNumerically("<=", mem.Total))
-	})
+func TestGetSwap2(t *testing.T) {
+	var concreteSigar sigar.ConcreteSigar
+	fsusage, err := concreteSigar.GetFileSystemUsage("/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fsusage.Total == 0 {
+		t.Fatal()
+	}
 
-	It("GetSwap", func() {
-		swap, err := concreteSigar.GetSwap()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(swap.Used + swap.Free).To(BeNumerically("<=", swap.Total))
-	})
-
-	It("GetSwap", func() {
-		fsusage, err := concreteSigar.GetFileSystemUsage("/")
-		Expect(err).ToNot(HaveOccurred())
-		Expect(fsusage.Total).ToNot(BeNil())
-
-		fsusage, err = concreteSigar.GetFileSystemUsage("T O T A L L Y B O G U S")
-		Expect(err).To(HaveOccurred())
-		Expect(fsusage.Total).To(Equal(uint64(0)))
-	})
-})
+	fsusage, err = concreteSigar.GetFileSystemUsage("T O T A L L Y B O G U S")
+	if err == nil {
+		t.Fatal()
+	}
+	if fsusage.Total != 0 {
+		t.Fatal()
+	}
+}

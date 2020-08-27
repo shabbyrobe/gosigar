@@ -1,3 +1,7 @@
+//+build ignore
+
+// FIXME: re-enable
+
 package sigar
 
 import (

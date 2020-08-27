@@ -17,8 +17,6 @@ if [ ! -d "/usr/local/go" ]; then
 fi
 export GOPATH=/home/vagrant/go
 export PATH=/usr/local/go/bin:$PATH:$GOPATH/bin
-/usr/local/go/bin/go get -u github.com/onsi/ginkgo/ginkgo
-/usr/local/go/bin/go get -u github.com/onsi/gomega;
 BASH
   config.vm.provision "shell", inline: 'apt-get install -y git-core'
   config.vm.provision "shell", inline: install_go
