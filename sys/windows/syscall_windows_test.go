@@ -6,8 +6,6 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGetProcessImageFileName(t *testing.T) {
@@ -149,7 +147,7 @@ func TestCreateToolhelp32Snapshot(t *testing.T) {
 		}
 	}
 
-	assert.Fail(t, "Snapshot not found for PID=%v", pid)
+	t.Fatalf("Snapshot not found for PID=%v", pid)
 }
 
 func TestNtQuerySystemProcessorPerformanceInformation(t *testing.T) {
@@ -158,7 +156,9 @@ func TestNtQuerySystemProcessorPerformanceInformation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Len(t, cpus, runtime.NumCPU())
+	if cpus != runtime.NumCPU() {
+		t.Fatal(cpus, "!=", runtime.NumCPU())
+	}
 
 	for i, cpu := range cpus {
 		if cpu.IdleTime == 0 {

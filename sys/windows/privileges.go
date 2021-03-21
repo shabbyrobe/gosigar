@@ -12,7 +12,7 @@ import (
 	"sync"
 	"syscall"
 
-	"golang.org/xrsys/windows"
+	"golang.org/x/sys/windows"
 )
 
 // Cache of privilege names to LUIDs.
